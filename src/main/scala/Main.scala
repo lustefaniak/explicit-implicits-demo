@@ -1,32 +1,59 @@
+sealed trait Product {
+  def name: String
+  def unitPrice: BigDecimal
+}
+
+case class Phone(name: String, unitPrice: BigDecimal) extends Product
+case class Accessory(name: String, unitPrice: BigDecimal) extends Product
+
+trait Pricer[T] {
+  def calculatePrice(t: T, quantity: Int): BigDecimal
+}
+
+object StandardPrices {
+  implicit val phonePricer = new Pricer[Phone] {
+    def calculatePrice(p: Phone, quantity: Int): BigDecimal = p.unitPrice * quantity
+  }
+  implicit val accessoryPricer = new Pricer[Accessory] {
+    def calculatePrice(p: Accessory, quantity: Int): BigDecimal = p.unitPrice * quantity
+  }
+}
+
+object SecondAccessoryFor1Cent {
+  implicit val accessoryPricer = new Pricer[Accessory] {
+    def calculatePrice(p: Accessory, quantity: Int): BigDecimal = {
+      val normalPriced = Math.ceil(quantity / 2.0).toInt
+      val for1centPriced = quantity - normalPriced
+      p.unitPrice * normalPriced + BigDecimal(0.01) * for1centPriced
+    }
+  }
+}
+
+
 object Main extends App {
 
-  import explicitImplicits._
-
-  sealed trait H
-
-  case class H1(name: String) extends H
-
-  case class H2(otherName: String) extends H
-
-  trait Writer[T] {
-    def write(t: T): String
+  val standardPricer: Pricer[Product] = {
+    import explicitImplicits._
+    import StandardPrices.phonePricer
+    import StandardPrices.accessoryPricer
+    deriveImplicits[Product, Pricer]
   }
 
-  implicit val h1Writer = new Writer[H1] {
-    override def write(t: H1): String = t.name
+  val promotionalPricer: Pricer[Product] = {
+    import explicitImplicits._
+    import StandardPrices.phonePricer
+    import SecondAccessoryFor1Cent.accessoryPricer
+    deriveImplicits[Product, Pricer]
   }
 
-  implicit val h2Writer = new Writer[H2] {
-    override def write(t: H2): String = t.otherName
-  }
+  val shoppingCart: Map[Product, Int] = Map(
+    Phone("Nexus 5", 100.0) -> 1,
+    Accessory("Qi charger", 30) -> 3
+  )
 
-  val h1 = H1("name")
-  val h2 = H2("otherName")
+  val standardCartValue = shoppingCart.map(standardPricer.calculatePrice _ tupled)
+  val promotionalCartValue = shoppingCart.map(promotionalPricer.calculatePrice _ tupled)
 
-
-  val writer: Writer[H] = deriveImplicits[H, Writer]
-
-  assert(writer.write(h1) == h1.name, "Writer should use implicit h1Writer")
-  assert(writer.write(h2) == h2.otherName, "Writer should use implicit h2Writer")
-
+  assert(standardCartValue == List[BigDecimal](100, 90))
+  assert(promotionalCartValue == List[BigDecimal](100, 60.01))
 }
