@@ -1,9 +1,11 @@
 sealed trait Product {
   def name: String
+
   def unitPrice: BigDecimal
 }
 
 case class Phone(name: String, unitPrice: BigDecimal) extends Product
+
 case class Accessory(name: String, unitPrice: BigDecimal) extends Product
 
 trait Pricer[T] {
@@ -36,14 +38,14 @@ object Main extends App {
     import explicitImplicits._
     import StandardPrices.phonePricer
     import StandardPrices.accessoryPricer
-    deriveImplicits[Product, Pricer]
+    deriveFromImplicits[Product, Pricer]
   }
 
   val promotionalPricer: Pricer[Product] = {
     import explicitImplicits._
     import StandardPrices.phonePricer
     import SecondAccessoryFor1Cent.accessoryPricer
-    deriveImplicits[Product, Pricer]
+    deriveFromImplicits[Product, Pricer]
   }
 
   val shoppingCart: Map[Product, Int] = Map(
